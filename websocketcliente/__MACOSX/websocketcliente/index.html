@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mensajero con WebSockets</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+<h2>Mensajero Web</h2>
+
+<label>Usuario:</label>
+<input type="text" id="username">
+<button onclick="connect()">Conectar</button>
+
+<h3>Mensajes</h3>
+<textarea id="message"></textarea>
+<br>
+<button onclick="sendMessage()">Enviar</button>
+
+<h3>Lista de Productos Recibidos</h3>
+<table border="1">
+    <thead>
+    <tr><th>Nombre</th><th>Precio</th></tr>
+    </thead>
+    <tbody id="productTable"></tbody>
+</table>
+
+<button onclick="sendProduct()">Enviar Producto</button>
+
+<script>
+    let stompClient;
+    let username;
+
+    function connect() {
+        username = document.getElementById("username").value;
+        let socket = new SockJS("http://localhost:8080/ws");
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function () {
+            console.log("Conectado");
+            stompClient.subscribe("/topic/messages", function (message) {
+                let msg = JSON.parse(message.body);
+                alert(msg.from + ": " + msg.message);
+            });
+
+            stompClient.subscribe("/topic/entities", function (message) {
+                let product = JSON.parse(message.body);
+                addProductToTable(product);
+            });
+        });
+    }
+
+    function sendMessage() {
+        let message = document.getElementById("message").value;
+        stompClient.send("/app/chat", {}, JSON.stringify({ from: username, message: message }));
+    }
+
+    function sendProduct() {
+        let product = { name: "Laptop", price: 500 };
+        stompClient.send("/app/entity", {}, JSON.stringify(product));
+    }
+
+    function addProductToTable(product) {
+        let row = `<tr><td>${product.name}</td><td>${product.price}</td></tr>`;
+        document.getElementById("productTable").innerHTML += row;
+    }
+</script>
+</body>
+</html>
